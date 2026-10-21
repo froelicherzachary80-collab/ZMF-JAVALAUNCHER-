@@ -12,9 +12,9 @@
 
 ## Cutting a release
 
-```sh
-git tag v0.2.0 && git push origin v0.2.0
-```
+From your phone: **Actions → Build IPA → Run workflow**, enter
+`release_tag` (e.g. `v0.2.1`) and run. The workflow creates the tag and the
+release. (Pushing a `v*` tag with git does the same.)
 
 The `Build IPA` workflow builds with `MARKETING_VERSION` = the tag, publishes
 the release (tags with a `-`, e.g. `v0.3.0-beta.1`, become pre-releases, which

@@ -19,6 +19,10 @@ on:
         description: "Optional: GL renderer archive URL(s) with renderer.json"
         required: false
         default: ""
+      release_tag:
+        description: "Optional: publish a versioned release with this tag (e.g. v0.2.0); the workflow creates the tag"
+        required: false
+        default: ""
 
 permissions:
   contents: write
@@ -42,8 +46,12 @@ jobs:
 
       - name: Resolve version
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-            VERSION="${GITHUB_REF_NAME#v}"
+          TAG="${{ github.event.inputs.release_tag }}"
+          if [[ -z "$TAG" && "$GITHUB_REF" == refs/tags/v* ]]; then TAG="$GITHUB_REF_NAME"; fi
+          if [[ -n "$TAG" ]]; then
+            [[ "$TAG" == v* ]] || { echo "release_tag must start with v"; exit 1; }
+            VERSION="${TAG#v}"
+            echo "RELEASE_TAG=$TAG" >> "$GITHUB_ENV"
             echo "IPA_NAME=ZMFJavaLauncher-v${VERSION}.ipa" >> "$GITHUB_ENV"
             echo "IS_TAG=true" >> "$GITHUB_ENV"
           else
@@ -137,7 +145,7 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           REPO_URL="https://github.com/$GITHUB_REPOSITORY"
-          TAG="${IS_TAG:+$GITHUB_REF_NAME}"; TAG="${TAG:-latest-build}"
+          TAG="${RELEASE_TAG:-latest-build}"
           ICON="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
           PRE=prerelease
           if [ "$IS_TAG" = true ] && [[ "$VERSION" != *-* ]]; then PRE=""; fi
@@ -153,8 +161,8 @@ jobs:
         run: |
           FLAGS=""
           [[ "$VERSION" == *-* ]] && FLAGS="--prerelease"
-          gh release create "$GITHUB_REF_NAME" ZMFJavaLauncher-*.ipa SHA256SUMS.txt altstore-source.json \
-            $FLAGS --verify-tag --title "ZMF Java Launcher $VERSION" --notes-file docs/RELEASE_NOTES.md
+          gh release create "$RELEASE_TAG" ZMFJavaLauncher-*.ipa SHA256SUMS.txt altstore-source.json \
+            $FLAGS --target "$GITHUB_SHA" --title "ZMF Java Launcher $VERSION" --notes-file docs/RELEASE_NOTES.md
 
       - name: Publish rolling "latest-build" pre-release (direct Safari download)
         if: github.event_name != 'pull_request' && env.IS_TAG != 'true'
