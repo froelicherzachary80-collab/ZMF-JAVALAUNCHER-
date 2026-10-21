@@ -168,7 +168,7 @@ final class InstallationManager: ObservableObject {
         let fm = FileManager.default
         for base in [Paths.libraries, Paths.assetObjects] {
             guard let e = fm.enumerator(at: base, includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey]) else { continue }
-            for case let url as URL in e {
+            for case let url as URL in e.allObjects {
                 guard (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
                 if !keep.contains(url.standardizedFileURL.path) {
                     freed += Int64((try? url.resourceValues(forKeys: [.fileSizeKey]).fileSize) ?? 0)
