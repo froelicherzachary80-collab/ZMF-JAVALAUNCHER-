@@ -85,3 +85,28 @@ final class VoiceTests: XCTestCase {
         XCTAssertEqual(lengths.last, OpusFormat.frameSamples, "lengths: \(lengths)")
     }
 }
+
+final class SignInDiagnosisTests: XCTestCase {
+    func testAccountTypeError() throws {
+        let body = #"{"error":"unauthorized_client","error_description":"AADSTS700016: Application with identifier 'b6726671' was not found in the directory 'Microsoft Accounts'.\r\nTrace ID: x","error_codes":[700016]}"#
+        let d = try XCTUnwrap(MicrosoftErrorDiagnosis.diagnose(body: body))
+        XCTAssertEqual(d.code, "AADSTS700016")
+        XCTAssertTrue(d.fix.contains("signInAudience"))
+        XCTAssertFalse(d.raw.contains("Trace ID"))
+    }
+
+    func testPublicClientError() throws {
+        let body = #"{"error":"invalid_client","error_description":"AADSTS7000218: The request body must contain the following parameter: 'client_assertion' or 'client_secret'."}"#
+        XCTAssertEqual(MicrosoftErrorDiagnosis.diagnose(body: body)?.fix, MicrosoftErrorDiagnosis.publicClientFix)
+    }
+
+    func testNotEnabledForConsumers() throws {
+        let body = #"{"error":"unauthorized_client","error_description":"The client does not exist or is not enabled for consumers."}"#
+        XCTAssertEqual(MicrosoftErrorDiagnosis.diagnose(body: body)?.fix, MicrosoftErrorDiagnosis.accountTypesFix)
+    }
+
+    func testRedirectError() {
+        let body = #"{"error":"invalid_request","error_description":"AADSTS50011: The redirect URI 'zmflauncher://auth' specified in the request does not match"}"#
+        XCTAssertEqual(MicrosoftErrorDiagnosis.diagnose(body: body)?.fix, MicrosoftErrorDiagnosis.redirectFix)
+    }
+}

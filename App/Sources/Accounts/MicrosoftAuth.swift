@@ -32,10 +32,10 @@ extension AuthError {
         if let e = error as? HTTPError {
             let host = e.url.host ?? ""
             if host.contains("login.microsoftonline.com") {
-                if e.body.contains("unauthorized_client") || e.body.contains("invalid_client") || e.body.contains("AADSTS700016") {
-                    return "Step 1 (Microsoft) failed: the app (client) ID is wrong or not set up as a public client. In Entra › your app › Authentication, add redirect URI zmflauncher://auth and turn on \"Allow public client flows\"."
+                if let d = MicrosoftErrorDiagnosis.diagnose(body: e.body) {
+                    return MicrosoftErrorDiagnosis.message(step: "Step 1 (Microsoft)", d)
                 }
-                return "Step 1 (Microsoft) failed: \(e.body.prefix(200))"
+                return "Step 1 (Microsoft) failed (HTTP \(e.status)): \(e.body.prefix(240))"
             }
             if host.contains("xboxlive") { return "Step 2 (Xbox Live) failed (HTTP \(e.status))." }
             if host.contains("minecraftservices") {
@@ -113,6 +113,11 @@ final class MicrosoftAuthenticator: NSObject, ASWebAuthenticationPresentationCon
         let items = URLComponents(url: callback, resolvingAgainstBaseURL: false)?.queryItems ?? []
         if let err = items.first(where: { $0.name == "error" })?.value {
             let desc = items.first(where: { $0.name == "error_description" })?.value ?? ""
+            let json = (try? JSONSerialization.data(withJSONObject: ["error": err, "error_description": desc]))
+                .flatMap { String(data: $0, encoding: .utf8) } ?? ""
+            if let d = MicrosoftErrorDiagnosis.diagnose(body: json) {
+                throw AuthError.xbox(MicrosoftErrorDiagnosis.message(step: "Step 1 (Microsoft)", d))
+            }
             throw AuthError.xbox("Microsoft sign-in error: \(err) \(desc)")
         }
         guard items.first(where: { $0.name == "state" })?.value == state else { throw AuthError.stateMismatch }

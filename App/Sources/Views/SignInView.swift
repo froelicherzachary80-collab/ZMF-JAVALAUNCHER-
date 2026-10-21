@@ -8,6 +8,8 @@ struct SignInView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @State private var showSetup = false
+    @State private var checking = false
+    @State private var checkResult: String?
 
     var body: some View {
         NavigationStack {
@@ -36,7 +38,14 @@ struct SignInView: View {
                     }
 
                     if let err = model.accounts.lastError {
-                        Card { Label(err, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(Theme.warning) }
+                        Card {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label(err, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(Theme.warning)
+                                    .textSelection(.enabled)
+                                Button { UIPasteboard.general.string = err } label: { Label("Copy error", systemImage: "doc.on.doc") }
+                                    .font(.caption).buttonStyle(.bordered)
+                            }
+                        }
                     }
                     DisclosureGroup("Advanced: Microsoft app ID", isExpanded: $showSetup) { setupSteps }
                         .font(.footnote)
@@ -87,9 +96,25 @@ struct SignInView: View {
             TextField("Application (client) ID", text: $store.settings.microsoftClientID)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
                 .font(.system(.footnote, design: .monospaced))
+            Button {
+                checking = true
+                checkResult = nil
+                Task {
+                    checkResult = await MicrosoftErrorDiagnosis.check(clientID: store.effectiveClientID)
+                    checking = false
+                }
+            } label: {
+                if checking { ProgressView() } else { Label("Check this app ID", systemImage: "stethoscope") }
+            }
+            .buttonStyle(.bordered)
+            .disabled(checking || store.effectiveClientID.isEmpty)
+            if let checkResult {
+                Text(checkResult).font(.caption).textSelection(.enabled)
+                    .foregroundStyle(checkResult.hasPrefix("✅") ? Theme.accent : Theme.warning)
+            }
             Text("""
             To create your own ID (once, from Safari):
-            1. portal.azure.com › Microsoft Entra ID › App registrations › New registration. Supported accounts: "Personal Microsoft accounts only".
+            1. portal.azure.com › Microsoft Entra ID › App registrations › New registration. Supported account types: "Accounts in any organizational directory and personal Microsoft accounts" (or "Personal Microsoft accounts only"). The default "single tenant" option does NOT work.
             2. Authentication › Add platform › Mobile and desktop › custom redirect URI zmflauncher://auth.
             3. Authentication › Allow public client flows: Yes (for sign-in codes).
             4. Copy the Application (client) ID here, or into the repository variable ZMF_MSA_CLIENT_ID so every build has it.
