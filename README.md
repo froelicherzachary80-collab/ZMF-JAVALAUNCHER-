@@ -4,8 +4,16 @@ An original, native iOS launcher for **Minecraft: Java Edition** — Swift/Swift
 Objective-C and C, built into an IPA by GitHub Actions. Unofficial; not affiliated
 with Mojang or Microsoft; ships no game files.
 
-**Download:** Releases → `latest-build` → `ZMFJavaLauncher-v0.1.ipa`
-(or Actions → Build IPA → artifacts). Install with Signulous: [docs/INSTALL.md](docs/INSTALL.md).
+**Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.**
+
+## Install
+
+* **AltStore / SideStore:** add the source
+  `https://github.com/froelicherzachary80-collab/ZMF-JAVALAUNCHER-/releases/latest/download/altstore-source.json`
+* **Signulous / other signing services:** download the IPA from
+  [Releases](https://github.com/froelicherzachary80-collab/ZMF-JAVALAUNCHER-/releases) and sign it.
+* Details: [docs/INSTALL.md](docs/INSTALL.md) · Privacy: [PRIVACY.md](PRIVACY.md) ·
+  Licenses: [LICENSE](LICENSE), [NOTICE.md](NOTICE.md) · Publishing: [docs/PUBLISHING.md](docs/PUBLISHING.md)
 
 ## What works in this build
 

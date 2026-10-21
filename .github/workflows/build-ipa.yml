@@ -3,6 +3,7 @@ name: Build IPA
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
   pull_request:
   workflow_dispatch:
     inputs:
@@ -26,9 +27,6 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  IPA_NAME: ZMFJavaLauncher-v0.1.ipa
-
 jobs:
   ipa:
     name: Compile & package IPA (iOS arm64)
@@ -41,6 +39,20 @@ jobs:
       HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' && secrets.IOS_PROFILE_BASE64 != '' }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+            echo "IPA_NAME=ZMFJavaLauncher-v${VERSION}.ipa" >> "$GITHUB_ENV"
+            echo "IS_TAG=true" >> "$GITHUB_ENV"
+          else
+            VERSION="$(awk -F'"' '/MARKETING_VERSION/{print $2; exit}' project.yml)"
+            # Stable file name for the rolling build so existing download links keep working.
+            echo "IPA_NAME=ZMFJavaLauncher-v0.1.ipa" >> "$GITHUB_ENV"
+          fi
+          echo "VERSION=$VERSION" >> "$GITHUB_ENV"
+          echo "Building version $VERSION (build $GITHUB_RUN_NUMBER)"
 
       - name: Select newest Xcode
         run: |
@@ -75,6 +87,10 @@ jobs:
       - name: Compile for iOS device (arm64, unsigned)
         run: |
           set -o pipefail
+          # Repository variables override project.yml defaults only when set.
+          EXTRA=()
+          [ -n "${{ vars.ZMF_MSA_CLIENT_ID }}" ] && EXTRA+=("ZMF_MSA_CLIENT_ID=${{ vars.ZMF_MSA_CLIENT_ID }}")
+          [ -n "${{ vars.ZMF_VOICE_RELAY_URL }}" ] && EXTRA+=("ZMF_VOICE_RELAY_URL=${{ vars.ZMF_VOICE_RELAY_URL }}")
           xcodebuild \
             -project ZMFJavaLauncher.xcodeproj \
             -scheme ZMFJavaLauncher \
@@ -84,8 +100,8 @@ jobs:
             -derivedDataPath build/DerivedData \
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
-            ZMF_MSA_CLIENT_ID="${{ vars.ZMF_MSA_CLIENT_ID }}" \
-            ZMF_VOICE_RELAY_URL="${{ vars.ZMF_VOICE_RELAY_URL }}" \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$GITHUB_RUN_NUMBER" \
+            "${EXTRA[@]}" \
             build 2>&1 | tee build/xcodebuild.log | grep -E "error:|warning: .*(Swift|deprecated)|BUILD (SUCCEEDED|FAILED)|\*\*" || true
           grep -q "BUILD SUCCEEDED" build/xcodebuild.log || { grep -E "error:" build/xcodebuild.log | head -80; exit 1; }
 
@@ -98,15 +114,13 @@ jobs:
           IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
           IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
           IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
-        run: ./scripts/sign-ipa.sh "$IPA_NAME" "ZMFJavaLauncher-v0.1-signed.ipa"
+        run: ./scripts/sign-ipa.sh "$IPA_NAME" "${IPA_NAME%.ipa}-signed.ipa"
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ZMFJavaLauncher-v0.1-ipa
-          path: |
-            ZMFJavaLauncher-v0.1.ipa
-            ZMFJavaLauncher-v0.1-signed.ipa
+          name: ZMFJavaLauncher-ipa
+          path: ZMFJavaLauncher-*.ipa
           if-no-files-found: error
 
       - name: Upload build logs
@@ -119,19 +133,40 @@ jobs:
             build/host-selftest.json
           if-no-files-found: ignore
 
-      - name: Publish rolling "latest-build" pre-release (direct Safari download)
+      - name: Checksums and AltStore/SideStore source
         if: github.event_name != 'pull_request'
+        run: |
+          REPO_URL="https://github.com/$GITHUB_REPOSITORY"
+          TAG="${IS_TAG:+$GITHUB_REF_NAME}"; TAG="${TAG:-latest-build}"
+          ICON="https://raw.githubusercontent.com/$GITHUB_REPOSITORY/$GITHUB_SHA/App/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png"
+          PRE=prerelease
+          if [ "$IS_TAG" = true ] && [[ "$VERSION" != *-* ]]; then PRE=""; fi
+          python3 scripts/make-altstore-source.py altstore-source.json "$VERSION" "$IPA_NAME" \
+            "$REPO_URL/releases/download/$TAG/$IPA_NAME" "$REPO_URL" "$ICON" $PRE
+          shasum -a 256 ZMFJavaLauncher-*.ipa > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish versioned release (tags v*)
+        if: env.IS_TAG == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          FLAGS=""
+          [[ "$VERSION" == *-* ]] && FLAGS="--prerelease"
+          gh release create "$GITHUB_REF_NAME" ZMFJavaLauncher-*.ipa SHA256SUMS.txt altstore-source.json \
+            $FLAGS --verify-tag --title "ZMF Java Launcher $VERSION" --notes-file docs/RELEASE_NOTES.md
+
+      - name: Publish rolling "latest-build" pre-release (direct Safari download)
+        if: github.event_name != 'pull_request' && env.IS_TAG != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release delete latest-build --yes --cleanup-tag || true
-          FILES="$IPA_NAME"
-          [ -f ZMFJavaLauncher-v0.1-signed.ipa ] && FILES="$FILES ZMFJavaLauncher-v0.1-signed.ipa"
-          gh release create latest-build $FILES \
+          gh release create latest-build ZMFJavaLauncher-*.ipa SHA256SUMS.txt altstore-source.json \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --title "ZMF Java Launcher 0.1 — latest build" \
-            --notes "Automated build of ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}. Unsigned IPA: sign it with Signulous (see docs/INSTALL.md). This build's runtime components and verified features are listed in docs/STATUS.md."
+            --title "ZMF Java Launcher $VERSION — latest build" \
+            --notes "Automated build of ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}. Unsigned IPA: sign with Signulous, AltStore or SideStore (see docs/INSTALL.md). Current status: docs/STATUS.md."
 
   tests:
     name: Unit tests (iOS Simulator)

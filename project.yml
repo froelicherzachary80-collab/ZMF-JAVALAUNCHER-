@@ -8,14 +8,16 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.0"
-    MARKETING_VERSION: "0.1"
+    MARKETING_VERSION: "0.2.0"
     CURRENT_PROJECT_VERSION: "1"
     TARGETED_DEVICE_FAMILY: "1"
     ENABLE_BITCODE: NO
     CLANG_ENABLE_OBJC_ARC: YES
     GCC_PREPROCESSOR_DEFINITIONS: ["$(inherited)", "GLES_SILENCE_DEPRECATION=1"]
     # Overridden from CI with the repository variable of the same name.
-    ZMF_MSA_CLIENT_ID: ""
+    # Public client ID (not a secret) so every published build can sign in.
+    # The repository variable ZMF_MSA_CLIENT_ID overrides it in CI.
+    ZMF_MSA_CLIENT_ID: "b6726671-09ac-49cd-a4da-d775c9c11cf5"
     ZMF_VOICE_RELAY_URL: ""
 
 targets:
