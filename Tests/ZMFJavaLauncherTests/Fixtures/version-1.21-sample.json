@@ -1,0 +1,37 @@
+{
+  "id": "1.21-sample",
+  "type": "release",
+  "mainClass": "net.minecraft.client.main.Main",
+  "releaseTime": "2024-06-13T08:24:03+00:00",
+  "javaVersion": { "component": "java-runtime-delta", "majorVersion": 21 },
+  "assetIndex": { "id": "17", "sha1": "aa", "size": 1, "totalSize": 2, "url": "https://piston-meta.mojang.com/v1/packages/aa/17.json" },
+  "assets": "17",
+  "downloads": { "client": { "sha1": "bb", "size": 10, "url": "https://piston-data.mojang.com/v1/objects/bb/client.jar" } },
+  "arguments": {
+    "game": [
+      "--username", "${auth_player_name}", "--version", "${version_name}", "--gameDir", "${game_directory}",
+      "--assetsDir", "${assets_root}", "--assetIndex", "${assets_index_name}", "--uuid", "${auth_uuid}",
+      "--accessToken", "${auth_access_token}", "--userType", "${user_type}", "--versionType", "${version_type}",
+      { "rules": [ { "action": "allow", "features": { "is_demo_user": true } } ], "value": "--demo" },
+      { "rules": [ { "action": "allow", "features": { "has_custom_resolution": true } } ], "value": [ "--width", "${resolution_width}", "--height", "${resolution_height}" ] },
+      { "rules": [ { "action": "allow", "features": { "is_quick_play_multiplayer": true } } ], "value": [ "--quickPlayMultiplayer", "${quickPlayMultiplayer}" ] }
+    ],
+    "jvm": [
+      { "rules": [ { "action": "allow", "os": { "name": "osx" } } ], "value": [ "-XstartOnFirstThread" ] },
+      { "rules": [ { "action": "allow", "os": { "name": "windows" } } ], "value": "-XX:HeapDumpPath=MojangTricksIntelDriversForPerformance_javaw.exe_minecraft.exe.heapdump" },
+      { "rules": [ { "action": "allow", "os": { "arch": "x86" } } ], "value": "-Xss1M" },
+      "-Djava.library.path=${natives_directory}",
+      "-Dminecraft.launcher.brand=${launcher_name}",
+      "-cp", "${classpath}"
+    ]
+  },
+  "libraries": [
+    { "name": "com.mojang:brigadier:1.2.9", "downloads": { "artifact": { "path": "com/mojang/brigadier/1.2.9/brigadier-1.2.9.jar", "sha1": "cc", "size": 5, "url": "https://libraries.minecraft.net/com/mojang/brigadier/1.2.9/brigadier-1.2.9.jar" } } },
+    { "name": "org.lwjgl:lwjgl:3.3.3", "downloads": { "artifact": { "path": "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3.jar", "sha1": "dd", "size": 5, "url": "https://libraries.minecraft.net/org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3.jar" } } },
+    { "name": "org.lwjgl:lwjgl:3.3.3:natives-macos-arm64", "downloads": { "artifact": { "path": "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-macos-arm64.jar", "sha1": "ee", "size": 5, "url": "https://libraries.minecraft.net/x.jar" } }, "rules": [ { "action": "allow", "os": { "name": "osx" } } ] },
+    { "name": "org.lwjgl:lwjgl:3.3.3:natives-windows", "downloads": { "artifact": { "path": "org/lwjgl/lwjgl/3.3.3/lwjgl-3.3.3-natives-windows.jar", "sha1": "ff", "size": 5, "url": "https://libraries.minecraft.net/y.jar" } }, "rules": [ { "action": "allow", "os": { "name": "windows" } } ] },
+    { "name": "ca.weblite:java-objc-bridge:1.1", "downloads": { "artifact": { "path": "ca/weblite/java-objc-bridge/1.1/java-objc-bridge-1.1.jar", "sha1": "11", "size": 5, "url": "https://libraries.minecraft.net/z.jar" } }, "rules": [ { "action": "allow", "os": { "name": "osx" } } ] },
+    { "name": "org.ow2.asm:asm:9.6", "downloads": { "artifact": { "path": "org/ow2/asm/asm/9.6/asm-9.6.jar", "sha1": "22", "size": 5, "url": "https://libraries.minecraft.net/org/ow2/asm/asm/9.6/asm-9.6.jar" } } }
+  ],
+  "logging": { "client": { "argument": "-Dlog4j.configurationFile=${path}", "file": { "id": "client-1.12.xml", "sha1": "33", "size": 5, "url": "https://piston-data.mojang.com/client-1.12.xml" }, "type": "log4j2-xml" } }
+}

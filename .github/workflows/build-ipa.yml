@@ -1,0 +1,174 @@
+name: Build IPA
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      runtime_urls:
+        description: "Optional: iOS Java runtime archive URL(s) to embed (space-separated, URL#sha256=... allowed)"
+        required: false
+        default: ""
+      lwjgl_urls:
+        description: "Optional: iOS LWJGL natives archive URL(s)"
+        required: false
+        default: ""
+      renderer_urls:
+        description: "Optional: GL renderer archive URL(s) with renderer.json"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  IPA_NAME: ZMFJavaLauncher-v0.1.ipa
+
+jobs:
+  ipa:
+    name: Compile & package IPA (iOS arm64)
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      ZMF_RUNTIME_URLS: ${{ github.event.inputs.runtime_urls || vars.ZMF_RUNTIME_URLS }}
+      ZMF_LWJGL_URLS: ${{ github.event.inputs.lwjgl_urls || vars.ZMF_LWJGL_URLS }}
+      ZMF_RENDERER_URLS: ${{ github.event.inputs.renderer_urls || vars.ZMF_RENDERER_URLS }}
+      HAS_SIGNING: ${{ secrets.IOS_CERT_P12_BASE64 != '' && secrets.IOS_PROFILE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select newest Xcode
+        run: |
+          XCODE="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Build Java support jar and JNI headers
+        run: |
+          mkdir -p build
+          ./scripts/prepare-jni-headers.sh
+          ./scripts/build-java-support.sh
+          # Prove the bytecode we ship is valid by running it on the host JVM.
+          java -cp App/Resources/java/zmf-support.jar dev.zmf.support.Bootstrap dev.zmf.support.SelfTest build/host-selftest.json
+          cat build/host-selftest.json
+
+      - name: Fetch optional runtime components
+        run: ./scripts/fetch-components.sh
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Compile for iOS device (arm64, unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project ZMFJavaLauncher.xcodeproj \
+            -scheme ZMFJavaLauncher \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            ZMF_MSA_CLIENT_ID="${{ vars.ZMF_MSA_CLIENT_ID }}" \
+            build 2>&1 | tee build/xcodebuild.log | grep -E "error:|warning: .*(Swift|deprecated)|BUILD (SUCCEEDED|FAILED)|\*\*" || true
+          grep -q "BUILD SUCCEEDED" build/xcodebuild.log || { grep -E "error:" build/xcodebuild.log | head -80; exit 1; }
+
+      - name: Package IPA
+        run: ./scripts/package-ipa.sh build/DerivedData/Build/Products/Release-iphoneos/ZMFJavaLauncher.app "$IPA_NAME"
+
+      - name: Sign IPA (only when signing secrets are configured)
+        if: env.HAS_SIGNING == 'true'
+        env:
+          IOS_CERT_P12_BASE64: ${{ secrets.IOS_CERT_P12_BASE64 }}
+          IOS_CERT_PASSWORD: ${{ secrets.IOS_CERT_PASSWORD }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: ./scripts/sign-ipa.sh "$IPA_NAME" "ZMFJavaLauncher-v0.1-signed.ipa"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZMFJavaLauncher-v0.1-ipa
+          path: |
+            ZMFJavaLauncher-v0.1.ipa
+            ZMFJavaLauncher-v0.1-signed.ipa
+          if-no-files-found: error
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            build/xcodebuild.log
+            build/host-selftest.json
+          if-no-files-found: ignore
+
+      - name: Publish rolling "latest-build" pre-release (direct Safari download)
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-build --yes --cleanup-tag || true
+          FILES="$IPA_NAME"
+          [ -f ZMFJavaLauncher-v0.1-signed.ipa ] && FILES="$FILES ZMFJavaLauncher-v0.1-signed.ipa"
+          gh release create latest-build $FILES \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "ZMF Java Launcher 0.1 — latest build" \
+            --notes "Automated build of ${GITHUB_SHA::7} from ${GITHUB_REF_NAME}. Unsigned IPA: sign it with Signulous (see docs/INSTALL.md). This build's runtime components and verified features are listed in docs/STATUS.md."
+
+  tests:
+    name: Unit tests (iOS Simulator)
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest Xcode
+        run: |
+          XCODE="$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)"
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: Prepare
+        run: |
+          brew install xcodegen
+          ./scripts/prepare-jni-headers.sh
+          ./scripts/build-java-support.sh
+          xcodegen generate
+      - name: Run tests
+        run: |
+          set -o pipefail
+          mkdir -p build
+          UDID="$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin)["devices"]; print(next(x["udid"] for k,v in d.items() if "iOS" in k for x in v if x["name"].startswith("iPhone")))')"
+          echo "Simulator: $UDID"
+          xcodebuild test \
+            -project ZMFJavaLauncher.xcodeproj \
+            -scheme ZMFJavaLauncher \
+            -destination "id=$UDID" \
+            -derivedDataPath build/TestData \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build/test.log | grep -E "Test Case|error:|Executed|\*\*" || true
+          grep -q "TEST SUCCEEDED" build/test.log || { grep -E "error:|failed" build/test.log | head -80; exit 1; }
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: build/test.log
+          if-no-files-found: ignore

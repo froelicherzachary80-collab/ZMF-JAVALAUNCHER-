@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	Intentionally minimal. Optional entitlements a signing service may be able
+	to grant (see docs/INSTALL.md): com.apple.developer.kernel.increased-memory-limit,
+	com.apple.developer.kernel.extended-virtual-addressing. They are not
+	declared here because a provisioning profile that lacks them makes the
+	install fail.
+	-->
+</dict>
+</plist>
