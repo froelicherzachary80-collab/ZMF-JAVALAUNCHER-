@@ -49,7 +49,7 @@ extension AuthError {
     }
 }
 
-enum AuthError: LocalizedError {
+enum AuthError: LocalizedError, Equatable {
     case missingClientID
     case cancelled
     case noCode
@@ -57,6 +57,7 @@ enum AuthError: LocalizedError {
     case xbox(String)
     case noJavaProfile
     case notOwned
+    case needsMinecraftApproval
 
     var errorDescription: String? {
         switch self {
@@ -68,6 +69,8 @@ enum AuthError: LocalizedError {
         case .xbox(let m): return m
         case .noJavaProfile: return "This Microsoft account has no Minecraft: Java Edition profile. Buy the game or create your profile at minecraft.net first."
         case .notOwned: return "This account does not own Minecraft: Java Edition."
+        case .needsMinecraftApproval:
+            return "Your Microsoft sign-in worked (steps 1 and 2 passed). Minecraft's servers answered 403 because Microsoft has not yet approved this app ID for Minecraft. Submit the ID on Microsoft's review form, then try again once it is approved — nothing else needs to change."
         }
     }
 }
@@ -236,7 +239,7 @@ enum MinecraftServices {
             loginData = try await HTTP.postJSON(URL(string: "https://api.minecraftservices.com/authentication/login_with_xbox")!,
                                                 body: ["identityToken": "XBL3.0 x=\(uhs);\(xsts.Token)"])
         } catch let e as HTTPError where e.status == 403 {
-            throw AuthError.xbox("Minecraft services rejected this app's client ID (HTTP 403). New Azure app registrations must be approved by Microsoft for Minecraft access (aka.ms/mce-reviewappid).")
+            throw AuthError.needsMinecraftApproval
         }
         let mc = try JSONDecoder().decode(MinecraftLogin.self, from: loginData)
         let bearer = ["Authorization": "Bearer \(mc.access_token)"]
@@ -285,6 +288,8 @@ final class AccountStore: ObservableObject {
     @Published var lastError: String?
     /// Active device-code sign-in (shown as a big code in the UI).
     @Published var deviceCode: DeviceCodeChallenge?
+    /// Sign-in reached Minecraft services but the app ID is not approved yet.
+    @Published var waitingForApproval = false
     private var deviceCodeTask: Task<Void, Never>?
 
     private let authenticator = MicrosoftAuthenticator()
@@ -305,6 +310,7 @@ final class AccountStore: ObservableObject {
         defer { busy = false }
         do {
             let account = try await authenticator.signIn(clientID: clientID)
+            waitingForApproval = false
             store(account)
             activeID = account.id
             lastError = nil
@@ -313,6 +319,7 @@ final class AccountStore: ObservableObject {
             return
         } catch {
             lastError = AuthError.explain(error)
+            waitingForApproval = (error as? AuthError) == .needsMinecraftApproval
             zlog.error("Sign-in failed: \(error.localizedDescription)")
         }
     }
@@ -329,6 +336,7 @@ final class AccountStore: ObservableObject {
                 deviceCode = challenge
                 let token = try await DeviceCodeLogin.waitForToken(clientID: clientID, challenge: challenge)
                 let account = try await MinecraftServices.login(microsoft: token)
+                waitingForApproval = false
                 store(account)
                 activeID = account.id
                 zlog.info("Signed in (device code) as \(account.username)")
@@ -338,6 +346,7 @@ final class AccountStore: ObservableObject {
                 return
             } catch {
                 lastError = AuthError.explain(error)
+                waitingForApproval = (error as? AuthError) == .needsMinecraftApproval
                 zlog.error("Device-code sign-in failed: \(error.localizedDescription)")
             }
         }

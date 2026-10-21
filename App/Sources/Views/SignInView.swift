@@ -37,7 +37,9 @@ struct SignInView: View {
                             .disabled(model.accounts.busy)
                     }
 
-                    if let err = model.accounts.lastError {
+                    if model.accounts.waitingForApproval {
+                        approvalCard
+                    } else if let err = model.accounts.lastError {
                         Card {
                             VStack(alignment: .leading, spacing: 8) {
                                 Label(err, systemImage: "exclamationmark.triangle.fill").font(.footnote).foregroundStyle(Theme.warning)
@@ -74,6 +76,26 @@ struct SignInView: View {
                 Button("Cancel", role: .cancel) { model.accounts.cancelDeviceCode() }
             }
             .frame(maxWidth: .infinity)
+        }
+    }
+
+    /// Steps 1–2 work; Microsoft must approve the app ID for Minecraft.
+    private var approvalCard: some View {
+        Card {
+            VStack(alignment: .leading, spacing: 10) {
+                Label("Almost there — waiting for Microsoft approval", systemImage: "hourglass").font(.headline).foregroundStyle(Theme.warning)
+                Text("Your Microsoft and Xbox sign-in worked. Minecraft only accepts launchers whose app ID Microsoft has approved, and yours hasn't been yet. This is Microsoft's rule for every third-party launcher; ZMF can't skip it.")
+                    .font(.footnote)
+                Text("On the form, give:\n• Application (client) ID: \(store.effectiveClientID)\n• Tenant ID: from your app's Overview page\n• What it is: a personal, non-commercial iOS launcher for Minecraft: Java Edition that signs in with the player's own account")
+                    .font(.caption).foregroundStyle(Theme.textSecondary).textSelection(.enabled)
+                Button {
+                    UIPasteboard.general.string = store.effectiveClientID
+                    if let url = URL(string: "https://aka.ms/mce-reviewappid") { openURL(url) }
+                } label: { Label("Copy app ID & open approval form", systemImage: "arrow.up.forward.app") }
+                    .buttonStyle(PrimaryButtonStyle())
+                Text("When Microsoft approves it, just tap “Continue with Microsoft” again — no rebuild needed.")
+                    .font(.caption2).foregroundStyle(Theme.textSecondary)
+            }
         }
     }
 
