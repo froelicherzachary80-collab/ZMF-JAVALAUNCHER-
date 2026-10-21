@@ -79,7 +79,9 @@ final class VoiceTests: XCTestCase {
         var packets: [Data] = []
         for _ in 0..<5 { packets.append(try encoder.encode(frame)) }
         XCTAssertTrue(packets.allSatisfy { !$0.isEmpty && $0.count < 400 }, "sizes: \(packets.map(\.count))")
-        let pcm = try decoder.decode(packets[4])
-        XCTAssertEqual(pcm.frameLength, OpusFormat.frameSamples)
+        // The first decoded frame is shortened by Opus's pre-skip; later frames are whole.
+        let lengths = try packets.map { try decoder.decode($0).frameLength }
+        XCTAssertTrue(lengths[0] > 0 && lengths[0] <= OpusFormat.frameSamples, "lengths: \(lengths)")
+        XCTAssertEqual(lengths.last, OpusFormat.frameSamples, "lengths: \(lengths)")
     }
 }
