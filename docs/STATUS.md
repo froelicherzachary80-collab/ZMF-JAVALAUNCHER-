@@ -19,6 +19,18 @@ until the named component exists.
 | Fabric mod verified in gameplay | **Blocked** | Fabric profile install + mod manager implemented; gameplay blocked as above |
 | Multiplayer on a test server | **Partially Device** | Server ping/status works without the game (Servers tab). Joining blocked as above |
 
+## v0.2 additions
+
+| Feature | Status | Evidence |
+|---|---|---|
+| Voice relay: auth, proximity, whisper, private/password rooms, isolated/open | **CI** | `Voice relay` workflow: unit + end-to-end tests with real WebSocket clients |
+| Position probe resolves names in vanilla (obfuscated) and Fabric (intermediary) builds | **CI** | `scripts/test-java.sh` against fake game classes + mapping files |
+| Voice framing, 3D math, SRV parsing, version matching, Opus encode/decode | **CI** | `VoiceTests` on the iOS Simulator (Opus test skips if the simulator lacks the codec) |
+| Mic capture, 3D playback, voice processing on iPhone | **Device** | needs testing on your phone with a deployed relay |
+| Rooms from the launcher (no game running) | **Device** | usable now once a relay is deployed |
+| Proximity voice in game | **Blocked** | needs the game itself running (see runtime blockers above) |
+| Device-code sign-in | **Device** | needs an approved Microsoft app ID |
+
 **Not claimed:** no build of this repository has run Minecraft. The default
 IPA is a complete launcher whose Play button explains exactly which runtime
 components are missing; it never shows simulated gameplay.

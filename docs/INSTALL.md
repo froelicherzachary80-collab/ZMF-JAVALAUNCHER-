@@ -57,10 +57,13 @@ Add these repository **secrets** and CI will also produce
 
 ## 4. First run
 
-1. Settings › Account → sign in with Microsoft (owns Java Edition).
+1. Home → **Sign in** → "Continue with Microsoft", or "Use a sign-in code
+   instead" (enter the code at microsoft.com/link on any device). Use the
+   account that owns Java Edition.
 2. Installations → New profile (Vanilla or Fabric) → Save.
 3. Home → **Play** installs and verifies the version files from Mojang.
 4. If runtime components are not embedded, Play lists exactly what is
    missing instead of starting (no fake frames).
-5. Settings › Controls Lab lets you try the touch controls and see the Java
+5. Multiplayer › Voice → enter your relay URL → Connect (see docs/VOICE.md).
+6. Settings › Controls Lab lets you try the touch controls and see the Java
    input events they produce without a game running.

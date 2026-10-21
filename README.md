@@ -13,7 +13,9 @@ with Mojang or Microsoft; ships no game files.
 - Profiles with separate game folders; Fabric (and Quilt) loader profiles
 - Mod manager: import .jar from Files, enable/disable/delete, dependency & incompatibility detection (incl. jar-in-jar and desktop native code), Modrinth .mrpack import, profile export, crash reports & logs
 - Microsoft sign-in (OAuth 2.0 + PKCE in the system sheet), Keychain tokens, refresh, ownership + profile + skin
-- Servers: saved list mirrored to `servers.dat`, live status ping, Join (quick play / --server)
+- Servers: saved list mirrored to `servers.dat`, live status ping (with SRV records), server-version detection with one-tap matching profile, Join
+- **ZMF Voice**: proximity voice chat on any server/version plus public/private/password rooms — only ZMF players hear each other ([docs/VOICE.md](docs/VOICE.md), relay in `voice-relay/`)
+- Sign in with Microsoft's page or with a code at microsoft.com/link
 - In-process JVM host (JNI), GLFW 3.4 implementation for LWJGL, EAGL/EGL contexts
 - Bedrock-style touch controls (joystick, camera, hold-to-mine, tap-to-use, hotbar, chat keyboard…), HUD drag-and-drop editor + presets, key mapping, Bluetooth controller & mouse, hardware keyboard
 - Video/performance settings written to `options.txt`; FPS/memory overlay; thermal-aware frame cap
