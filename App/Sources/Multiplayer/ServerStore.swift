@@ -11,6 +11,11 @@ struct SavedServer: Codable, Identifiable, Hashable {
         return parts.count == 2 ? String(parts[0]) : address
     }
 
+    var hasExplicitPort: Bool {
+        if address.hasPrefix("[") { return address.contains("]:") }
+        return address.split(separator: ":").count == 2
+    }
+
     var port: UInt16 {
         if let colon = address.lastIndex(of: ":"), address.split(separator: ":").count == 2 || address.hasPrefix("["),
            let p = UInt16(address[address.index(after: colon)...]) { return p }

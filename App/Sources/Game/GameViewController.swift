@@ -25,10 +25,13 @@ final class GameViewController: UIViewController {
     private var lastStatsUpdate: CFTimeInterval = 0
     private var lastFrameTime: CFTimeInterval = 0
     private var labLines: [String] = []
+    private let voice: VoiceClient?
+    private let voiceLabel = UILabel()
     var onFinish: (() -> Void)?
 
-    init(mode: Mode, settings: LauncherSettings, preset: HUDPreset) {
+    init(mode: Mode, settings: LauncherSettings, preset: HUDPreset, voice: VoiceClient? = nil) {
         self.mode = mode
+        self.voice = voice
         self.settings = settings
         self.preset = preset
         switch mode {
@@ -62,6 +65,16 @@ final class GameViewController: UIViewController {
         keyInput.frame = CGRect(x: -10, y: -10, width: 1, height: 1)
         view.addSubview(keyInput)
         overlay.onKeyboardRequest = { [weak self] in self?.toggleKeyboard() }
+        overlay.onVoiceButton = { [weak self] pressed in self?.voiceButton(pressed) }
+
+        voiceLabel.font = .systemFont(ofSize: 12, weight: .semibold)
+        voiceLabel.textColor = .white
+        voiceLabel.numberOfLines = 0
+        voiceLabel.backgroundColor = UIColor.black.withAlphaComponent(0.35)
+        voiceLabel.layer.cornerRadius = 6
+        voiceLabel.clipsToBounds = true
+        voiceLabel.isHidden = true
+        view.addSubview(voiceLabel)
 
         statsLabel.font = .monospacedSystemFont(ofSize: 11, weight: .semibold)
         statsLabel.textColor = .white
@@ -129,6 +142,7 @@ final class GameViewController: UIViewController {
         overlay.frame = view.bounds
         let safe = view.safeAreaInsets
         statsLabel.frame = CGRect(x: safe.left + 8, y: max(safe.top, 6), width: 170, height: 44)
+        voiceLabel.frame = CGRect(x: safe.left + 8, y: max(safe.top, 6) + 50, width: 190, height: voiceLabel.intrinsicContentSize.height + 6)
         closeButton.frame = CGRect(x: view.bounds.width - safe.right - 84, y: max(safe.top, 6) + 50, width: 76, height: 34)
         labModeSwitch.frame = CGRect(x: view.bounds.width - safe.right - 200, y: max(safe.top, 6) + 90, width: 192, height: 30)
         if case .controlsLab = mode {
@@ -233,6 +247,7 @@ final class GameViewController: UIViewController {
             }
             statsLabel.text = lines.isEmpty ? nil : lines.map { " " + $0 }.joined(separator: "\n")
             statsLabel.isHidden = lines.isEmpty
+            updateVoiceOverlay()
         }
     }
 
@@ -247,6 +262,38 @@ final class GameViewController: UIViewController {
             }
         }
         zmf_set_fps_cap(Int32(cap))
+    }
+
+    // MARK: Voice
+
+    private func voiceButton(_ pressed: Bool) {
+        guard let voice else { return }
+        if settings.voiceActivation == .pushToTalk {
+            voice.pushToTalkHeld = pressed
+        } else if pressed {
+            voice.micMuted.toggle()
+        }
+        overlay.setVoiceActive(voiceIsLive)
+    }
+
+    private var voiceIsLive: Bool {
+        guard let voice, voice.isConnected else { return false }
+        return settings.voiceActivation == .pushToTalk ? voice.transmitting : !voice.micMuted
+    }
+
+    private func updateVoiceOverlay() {
+        overlay.setVoiceActive(voiceIsLive)
+        guard settings.showVoiceOverlay, let voice, voice.isConnected else { voiceLabel.isHidden = true; return }
+        var lines: [String] = []
+        if voice.transmitting || (settings.voiceActivation == .voiceActivation && !voice.micMuted && voice.inputLevel > Float(settings.voiceThresholdDB)) {
+            lines.append("🎙 You")
+        }
+        if voice.micMuted { lines.append("🔇 Mic muted") }
+        if let room = voice.currentRoom { lines.append("# \(room.name)") }
+        lines += voice.talkingPeers.prefix(5).map { "🔊 \($0.name)" }
+        voiceLabel.text = lines.isEmpty ? nil : lines.map { " " + $0 }.joined(separator: "\n")
+        voiceLabel.isHidden = lines.isEmpty
+        view.setNeedsLayout()
     }
 
     // MARK: Actions

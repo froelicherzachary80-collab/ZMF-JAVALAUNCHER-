@@ -11,6 +11,7 @@ final class AppModel: ObservableObject {
     let servers: ServerStore
     let hud: HUDStore
     let session: GameSession
+    let voice: VoiceClient
     @Published private(set) var catalog = RuntimeCatalog.discover()
     @Published private(set) var jitAvailable = ZMFProcessHasDebuggerJIT()
     @Published var news: [NewsItem] = []
@@ -26,6 +27,7 @@ final class AppModel: ObservableObject {
         servers = ServerStore()
         hud = HUDStore()
         session = GameSession()
+        voice = VoiceClient()
         // Re-publish nested stores so views observing AppModel refresh.
         for publisher in [settingsStore.objectWillChange.eraseToAnyPublisher(),
                           installer.objectWillChange.eraseToAnyPublisher(),
@@ -33,11 +35,26 @@ final class AppModel: ObservableObject {
                           accounts.objectWillChange.eraseToAnyPublisher(),
                           servers.objectWillChange.eraseToAnyPublisher(),
                           hud.objectWillChange.eraseToAnyPublisher(),
-                          session.objectWillChange.eraseToAnyPublisher()] {
+                          session.objectWillChange.eraseToAnyPublisher(),
+                          voice.objectWillChange.eraseToAnyPublisher()] {
             publisher.receive(on: RunLoop.main).sink { [weak self] _ in self?.objectWillChange.send() }.store(in: &bag)
         }
         if profiles.profiles.isEmpty, let latest = installer.manifest?.latest.release {
             profiles.upsert(GameProfile.make(name: "Latest Release", version: latest))
+        }
+        voice.apply(settings: settingsStore.settings)
+        settingsStore.$settings.receive(on: RunLoop.main).sink { [weak self] s in self?.voice.apply(settings: s) }.store(in: &bag)
+    }
+
+    /// Connects ZMF Voice with the active account (refreshing its token first).
+    func connectVoice() async {
+        let relay = settingsStore.effectiveRelayURL
+        guard !relay.isEmpty else { voice.lastError = "Set a voice relay URL first."; return }
+        do {
+            let account = try await accounts.validSession(clientID: settingsStore.effectiveClientID)
+            await voice.connect(relay: relay, account: account)
+        } catch {
+            voice.lastError = AuthError.explain(error)
         }
     }
 

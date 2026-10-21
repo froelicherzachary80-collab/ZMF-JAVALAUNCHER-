@@ -1,0 +1,20 @@
+# compiler: R8
+net.minecraft.client.Minecraft -> zz.a:
+    net.minecraft.client.player.LocalPlayer player -> p
+    net.minecraft.client.multiplayer.ClientLevel level -> l
+    1:1:net.minecraft.client.Minecraft getInstance() -> i
+    5:9:net.minecraft.client.multiplayer.ServerData getCurrentServer() -> s
+    10:10:void setScreen(net.minecraft.client.gui.screens.Screen) -> a
+net.minecraft.client.multiplayer.ServerData -> zz.f:
+    java.lang.String ip -> ip0
+net.minecraft.world.entity.Entity -> zz.c:
+    1:1:double getX() -> x1
+    1:1:double getY() -> y1
+    1:1:double getZ() -> z1
+    1:1:float getYRot() -> r
+net.minecraft.world.level.Level -> zz.d:
+    1:1:net.minecraft.resources.ResourceKey dimension() -> dm
+net.minecraft.resources.ResourceKey -> zz.e:
+    1:1:net.minecraft.resources.ResourceLocation location() -> lo
+net.minecraft.SomethingElse -> zz.q:
+    int unrelated -> u

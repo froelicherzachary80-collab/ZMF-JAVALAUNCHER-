@@ -1,0 +1,15 @@
+tiny	2	0	official	intermediary
+c	zz/a	net/minecraft/class_310
+	f	Lzz/b;	p	field_1724
+	f	Lzz/d;	l	field_1687
+	m	()Lzz/a;	i	method_1551
+	m	()Lzz/f;	s	method_1558
+c	zz/c	net/minecraft/class_1297
+	m	()D	x1	method_23317
+	m	()D	y1	method_23318
+	m	()D	z1	method_23321
+	m	()F	r	method_36454
+c	zz/d	net/minecraft/class_1937
+	m	()Lzz/e;	dm	method_27983
+c	zz/e	net/minecraft/class_5321
+	m	()Lnet/minecraft/class_2960;	lo	method_29177

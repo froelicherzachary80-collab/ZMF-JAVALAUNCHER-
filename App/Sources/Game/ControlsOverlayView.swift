@@ -24,6 +24,10 @@ final class ControlsOverlayView: UIView {
     /// Drawable pixels per point of this view (resolution scale aware).
     var pixelScale: CGFloat = 2
     var onKeyboardRequest: (() -> Void)?
+    /// Talk button pressed / released.
+    var onVoiceButton: ((Bool) -> Void)?
+
+    func setVoiceActive(_ active: Bool) { controlViews[.voice]?.isActive = active }
 
     private var roles: [ObjectIdentifier: Role] = [:]
     private var controlViews: [HUDControlKind: HUDControlView] = [:]
@@ -307,6 +311,7 @@ final class ControlsOverlayView: UIView {
         case .pause: sink.tapKey(key(.pause))
         case .perspective: sink.tapKey(key(.perspective))
         case .keyboard: onKeyboardRequest?()
+        case .voice: onVoiceButton?(true)
         case .joystick, .hotbar: break
         }
         updateVisibility()
@@ -320,6 +325,7 @@ final class ControlsOverlayView: UIView {
         case .use: sink.mouseButton(1, pressed: false)
         case .sneak where !settings.sneakIsToggle: sink.key(key(.sneak), pressed: false)
         case .drop: sink.key(key(.drop), pressed: false)
+        case .voice: onVoiceButton?(false)
         default: break
         }
     }

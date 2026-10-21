@@ -4,6 +4,7 @@ struct HomeView: View {
     @EnvironmentObject var model: AppModel
     @State private var face: UIImage?
     @State private var showBlocked = false
+    @State private var showSignIn = false
 
     var body: some View {
         NavigationStack {
@@ -31,6 +32,7 @@ struct HomeView: View {
             .navigationTitle("ZMF Java")
             .task(id: model.accounts.active?.id) { await loadFace() }
             .sheet(isPresented: $showBlocked) { blockedSheet }
+            .sheet(isPresented: $showSignIn) { SignInView() }
             .onChange(of: model.session.state) { _, state in
                 if case .blocked = state { showBlocked = true }
             }
@@ -56,7 +58,8 @@ struct HomeView: View {
                                 symbol: "checkmark.shield")
                 } else {
                     Text("Not signed in").font(.title2.bold())
-                    Text("Sign in with Microsoft in Settings › Account").font(.footnote).foregroundStyle(Theme.textSecondary)
+                    Button { showSignIn = true } label: { Label("Sign in", systemImage: "person.badge.key") }
+                        .buttonStyle(.borderedProminent)
                 }
             }
             Spacer()

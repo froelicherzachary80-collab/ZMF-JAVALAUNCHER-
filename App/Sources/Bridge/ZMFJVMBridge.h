@@ -23,6 +23,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 typedef void (^ZMFJVMCompletion)(int exitCode, NSString *_Nullable errorMessage);
 
+/// Receives the local player's state from the game (ZMF telemetry thread,
+/// ~10 Hz). world is NULL when the player is not in a world. Called on a Java
+/// thread: implementations must be thread-safe and fast.
+typedef void (*ZMFTelemetryHandler)(const char *_Nullable world, double x, double y, double z, float yaw);
+void ZMFSetTelemetryHandler(ZMFTelemetryHandler _Nullable handler);
+
 @interface ZMFJVMBridge : NSObject
 /// Locates libjvm.dylib inside a Java home (JDK 8 and 9+ layouts).
 + (nullable NSString *)libjvmPathForJavaHome:(NSString *)javaHome;

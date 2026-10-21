@@ -1,0 +1,11 @@
+# One-click deploy on Render (Blueprint): New + › Blueprint › pick this repo.
+services:
+  - type: web
+    name: zmf-voice-relay
+    runtime: docker
+    rootDir: voice-relay
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ZMF_PROXIMITY_RANGE
+        value: "48"

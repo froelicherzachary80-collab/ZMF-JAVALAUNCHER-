@@ -34,6 +34,10 @@ public final class Bootstrap {
         final String crashFile = System.getProperty("zmf.crashFile");
         Thread.setDefaultUncaughtExceptionHandler((thread, error) -> writeCrash(crashFile, thread.getName(), error));
 
+        if (Boolean.getBoolean("zmf.telemetry")) {
+            dev.zmf.support.telemetry.Telemetry.start();
+        }
+
         try {
             Class<?> cls = Class.forName(mainClass, true, ClassLoader.getSystemClassLoader());
             Method main = cls.getMethod("main", String[].class);

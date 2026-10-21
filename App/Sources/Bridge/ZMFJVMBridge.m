@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <jni.h>
+#include <stdatomic.h>
 
 typedef jint (JNICALL *CreateJavaVM_t)(JavaVM **, void **, void *);
 
@@ -13,6 +14,41 @@ typedef jint (JNICALL *CreateJavaVM_t)(JavaVM **, void **, void *);
 @end
 
 static BOOL gLaunched = NO;
+static _Atomic(ZMFTelemetryHandler) gTelemetryHandler = NULL;
+
+void ZMFSetTelemetryHandler(ZMFTelemetryHandler handler) {
+    gTelemetryHandler = handler;
+}
+
+// dev.zmf.support.telemetry.NativeBridge.publish(String, double, double, double, float)
+static void JNICALL zmf_native_publish(JNIEnv *env, jclass cls, jstring world, jdouble x, jdouble y, jdouble z, jfloat yaw) {
+    (void)cls;
+    ZMFTelemetryHandler handler = gTelemetryHandler;
+    if (!handler) return;
+    if (!world) {
+        handler(NULL, x, y, z, yaw);
+        return;
+    }
+    const char *utf = (*env)->GetStringUTFChars(env, world, NULL);
+    if (!utf) return;
+    handler(utf, x, y, z, yaw);
+    (*env)->ReleaseStringUTFChars(env, world, utf);
+}
+
+static void register_natives(JNIEnv *env) {
+    jclass bridge = (*env)->FindClass(env, "dev/zmf/support/telemetry/NativeBridge");
+    if (!bridge) {
+        (*env)->ExceptionClear(env);
+        return;
+    }
+    JNINativeMethod methods[] = {
+        { "publish", "(Ljava/lang/String;DDDF)V", (void *)zmf_native_publish },
+    };
+    if ((*env)->RegisterNatives(env, bridge, methods, 1) != 0) {
+        (*env)->ExceptionClear(env);
+        fprintf(stderr, "[ZMF] RegisterNatives for telemetry failed\n");
+    }
+}
 static char gExitStatusPath[1024];
 
 static void JNICALL zmf_vm_exit_hook(jint code) {
@@ -107,6 +143,8 @@ static void *zmf_jvm_thread(void *arg) {
         finish(ctx, (int)rc, [NSString stringWithFormat:@"JNI_CreateJavaVM failed (%d)", (int)rc]);
         return NULL;
     }
+
+    register_natives(env);
 
     NSString *internalName = [req.mainClass stringByReplacingOccurrencesOfString:@"." withString:@"/"];
     jclass mainClass = (*env)->FindClass(env, internalName.UTF8String);

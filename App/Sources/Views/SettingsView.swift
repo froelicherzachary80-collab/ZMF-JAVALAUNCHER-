@@ -42,6 +42,7 @@ struct SettingsView: View {
 struct AccountSettingsView: View {
     @EnvironmentObject var model: AppModel
     @EnvironmentObject var store: SettingsStore
+    @State private var showSignIn = false
 
     var body: some View {
         Form {
@@ -61,11 +62,7 @@ struct AccountSettingsView: View {
                     .onTapGesture { model.accounts.activeID = account.id }
                     .swipeActions { Button("Log out", role: .destructive) { model.accounts.signOut(account) } }
                 }
-                Button {
-                    Task { await model.accounts.signIn(clientID: model.settingsStore.effectiveClientID) }
-                } label: {
-                    if model.accounts.busy { ProgressView() } else { Label("Sign in with Microsoft", systemImage: "person.badge.plus") }
-                }
+                Button { showSignIn = true } label: { Label("Add Microsoft account", systemImage: "person.badge.plus") }
                 if let err = model.accounts.lastError { Text(err).font(.footnote).foregroundStyle(Theme.danger) }
             } header: { Text("Accounts") } footer: {
                 Text("Sign-in happens on Microsoft's own page (OAuth 2.0 authorization code + PKCE); ZMF never sees your password. Tokens are stored in the iOS Keychain on this device only. Swipe an account to log out.")
@@ -80,6 +77,7 @@ struct AccountSettingsView: View {
             }
         }
         .navigationTitle("Account")
+        .sheet(isPresented: $showSignIn) { SignInView() }
     }
 }
 

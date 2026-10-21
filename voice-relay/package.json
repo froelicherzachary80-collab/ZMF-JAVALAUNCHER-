@@ -1,0 +1,17 @@
+{
+  "name": "zmf-voice-relay",
+  "version": "0.2.0",
+  "description": "Proximity + room voice relay for ZMF Java Launcher clients. Works independently of the Minecraft server being played on.",
+  "main": "src/server.js",
+  "type": "commonjs",
+  "license": "MIT",
+  "private": true,
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "ws": "8.18.0"
+  }
+}

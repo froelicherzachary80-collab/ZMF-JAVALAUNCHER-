@@ -24,7 +24,7 @@ struct RootView: View {
             HomeView().tabItem { Label("Home", systemImage: "house.fill") }
             InstallationsView().tabItem { Label("Installations", systemImage: "square.stack.3d.up.fill") }
             ModsView().tabItem { Label("Mods", systemImage: "puzzlepiece.extension.fill") }
-            ServersView().tabItem { Label("Servers", systemImage: "network") }
+            MultiplayerView().tabItem { Label("Multiplayer", systemImage: "person.2.wave.2.fill") }
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape.fill") }
         }
         .toolbarBackground(Theme.surface, for: .tabBar)

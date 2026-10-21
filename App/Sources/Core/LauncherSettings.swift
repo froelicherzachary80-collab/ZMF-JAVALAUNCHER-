@@ -14,6 +14,12 @@ enum QualityProfile: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum VoiceActivation: String, Codable, CaseIterable, Identifiable {
+    case pushToTalk, voiceActivation
+    var id: String { rawValue }
+    var title: String { self == .pushToTalk ? "Push to talk" : "Voice activation" }
+}
+
 enum GCMode: String, Codable, CaseIterable, Identifiable {
     case serial, g1
     var id: String { rawValue }
@@ -70,6 +76,22 @@ struct LauncherSettings: Codable, Equatable {
 
     var selectedProfileID: UUID?
 
+    // ZMF Voice
+    var voiceEnabled: Bool = true
+    /// Empty uses the relay baked in at build time (ZMF_VOICE_RELAY_URL).
+    var voiceRelayURL: String = ""
+    var voiceActivation: VoiceActivation = .pushToTalk
+    /// Voice-activation threshold in dBFS.
+    var voiceThresholdDB: Double = -45
+    var micGain: Double = 1.0
+    var voiceOutputVolume: Double = 1.0
+    var voiceNoiseSuppression: Bool = true
+    var voiceAutoConnect: Bool = true
+    var voice3DAudio: Bool = true
+    var showVoiceOverlay: Bool = true
+    /// Per-player volume (Minecraft UUID → 0...2), 0 = muted.
+    var playerVolumes: [String: Double] = [:]
+
     init() {}
 
     // Decode leniently so adding settings never wipes a user's configuration.
@@ -109,6 +131,17 @@ struct LauncherSettings: Codable, Equatable {
         keyMap = KeyMapping.defaults.merging(v(.keyMap, [String: Int]())) { _, user in user }
         microsoftClientID = v(.microsoftClientID, microsoftClientID)
         selectedProfileID = (try? c.decodeIfPresent(UUID.self, forKey: .selectedProfileID)) ?? nil
+        voiceEnabled = v(.voiceEnabled, voiceEnabled)
+        voiceRelayURL = v(.voiceRelayURL, voiceRelayURL)
+        voiceActivation = v(.voiceActivation, voiceActivation)
+        voiceThresholdDB = v(.voiceThresholdDB, voiceThresholdDB)
+        micGain = v(.micGain, micGain)
+        voiceOutputVolume = v(.voiceOutputVolume, voiceOutputVolume)
+        voiceNoiseSuppression = v(.voiceNoiseSuppression, voiceNoiseSuppression)
+        voiceAutoConnect = v(.voiceAutoConnect, voiceAutoConnect)
+        voice3DAudio = v(.voice3DAudio, voice3DAudio)
+        showVoiceOverlay = v(.showVoiceOverlay, showVoiceOverlay)
+        playerVolumes = v(.playerVolumes, playerVolumes)
     }
 
     mutating func apply(_ profile: QualityProfile) {
@@ -139,6 +172,14 @@ final class SettingsStore: ObservableObject {
 
     init() {
         settings = JSONStore.load(LauncherSettings.self, from: "settings.json") ?? LauncherSettings()
+    }
+
+    /// Voice relay: user override, else the build-time value.
+    var effectiveRelayURL: String {
+        let override = settings.voiceRelayURL.trimmingCharacters(in: .whitespaces)
+        if !override.isEmpty { return override }
+        return (Bundle.main.object(forInfoDictionaryKey: "ZMFVoiceRelayURL") as? String)?
+            .trimmingCharacters(in: .whitespaces) ?? ""
     }
 
     /// Microsoft application ID: user override, else the build-time value.

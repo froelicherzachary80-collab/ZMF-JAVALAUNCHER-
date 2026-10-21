@@ -2,7 +2,7 @@ import Foundation
 import CoreGraphics
 
 enum HUDControlKind: String, Codable, CaseIterable, Identifiable {
-    case joystick, jump, sneak, sprint, attack, use, inventory, drop, chat, command, pause, perspective, keyboard, hotbar
+    case joystick, jump, sneak, sprint, attack, use, inventory, drop, chat, command, pause, perspective, keyboard, hotbar, voice
 
     var id: String { rawValue }
 
@@ -22,6 +22,7 @@ enum HUDControlKind: String, Codable, CaseIterable, Identifiable {
         case .perspective: return "View"
         case .keyboard: return "Keyboard"
         case .hotbar: return "Hotbar"
+        case .voice: return "Talk"
         }
     }
 
@@ -41,11 +42,12 @@ enum HUDControlKind: String, Codable, CaseIterable, Identifiable {
         case .perspective: return "eye"
         case .keyboard: return "keyboard"
         case .hotbar: return "rectangle.split.3x1"
+        case .voice: return "mic.fill"
         }
     }
 
     /// Controls that stay visible in menus (cursor released).
-    var visibleInMenus: Bool { self == .pause || self == .keyboard }
+    var visibleInMenus: Bool { self == .pause || self == .keyboard || self == .voice }
 }
 
 struct HUDControl: Codable, Identifiable, Hashable {
@@ -81,6 +83,7 @@ struct HUDPreset: Codable, Identifiable, Hashable {
         .init(kind: .keyboard, x: 0.82, y: 0.06, size: 40),
         .init(kind: .pause, x: 0.50, y: 0.06, size: 40),
         .init(kind: .hotbar, x: 0.50, y: 0.95, size: 40),
+        .init(kind: .voice, x: 0.07, y: 0.38, size: 50),
     ], builtin: true)
 
     static let compact = HUDPreset(id: "compact", name: "Compact", controls: bedrock.controls.map { c in
@@ -115,7 +118,12 @@ final class HUDStore: ObservableObject {
 
     var all: [HUDPreset] { HUDPreset.builtins + custom }
 
-    func preset(_ id: String) -> HUDPreset { all.first { $0.id == id } ?? .bedrock }
+    /// Presets saved before a control existed get it added at its default spot.
+    func preset(_ id: String) -> HUDPreset {
+        var p = all.first { $0.id == id } ?? .bedrock
+        for c in HUDPreset.bedrock.controls where p.control(c.kind) == nil { p.controls.append(c) }
+        return p
+    }
 
     func save(_ preset: HUDPreset) -> HUDPreset {
         var p = preset

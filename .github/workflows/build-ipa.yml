@@ -85,6 +85,7 @@ jobs:
             ARCHS=arm64 ONLY_ACTIVE_ARCH=NO \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
             ZMF_MSA_CLIENT_ID="${{ vars.ZMF_MSA_CLIENT_ID }}" \
+            ZMF_VOICE_RELAY_URL="${{ vars.ZMF_VOICE_RELAY_URL }}" \
             build 2>&1 | tee build/xcodebuild.log | grep -E "error:|warning: .*(Swift|deprecated)|BUILD (SUCCEEDED|FAILED)|\*\*" || true
           grep -q "BUILD SUCCEEDED" build/xcodebuild.log || { grep -E "error:" build/xcodebuild.log | head -80; exit 1; }
 
@@ -152,6 +153,8 @@ jobs:
           ./scripts/prepare-jni-headers.sh
           ./scripts/build-java-support.sh
           xcodegen generate
+      - name: Java telemetry tests (mapping resolution, vanilla + Fabric)
+        run: ./scripts/test-java.sh
       - name: Run tests
         run: |
           set -o pipefail

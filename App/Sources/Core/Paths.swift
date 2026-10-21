@@ -26,6 +26,7 @@ enum Paths {
     static func versionDirectory(_ id: String) -> URL { versions.appendingPathComponent(id, isDirectory: true) }
     static func versionJSON(_ id: String) -> URL { versionDirectory(id).appendingPathComponent("\(id).json") }
     static func clientJar(_ id: String) -> URL { versionDirectory(id).appendingPathComponent("\(id).jar") }
+    static func clientMappings(_ id: String) -> URL { versionDirectory(id).appendingPathComponent("client_mappings.txt") }
     static func nativesDirectory(_ id: String) -> URL { versionDirectory(id).appendingPathComponent("natives", isDirectory: true) }
 
     static func instance(_ directoryName: String) -> URL { instances.appendingPathComponent(directoryName, isDirectory: true) }

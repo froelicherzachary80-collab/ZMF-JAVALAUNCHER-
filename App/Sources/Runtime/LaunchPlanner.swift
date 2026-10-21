@@ -158,6 +158,17 @@ enum LaunchPlanner {
             "-Dzmf.crashFile=\(crashURL.path)",
             "-Dzmf.renderer=\(renderer.id)",
         ]
+        // ZMF Voice position telemetry (see Java/src/dev/zmf/support/telemetry).
+        if settings.voiceEnabled {
+            jvm.append("-Dzmf.telemetry=true")
+            jvm.append("-Dzmf.playerUuid=\(account.id)")
+            if fm.fileExists(Paths.clientMappings(rootID)) {
+                jvm.append("-Dzmf.mappings=\(Paths.clientMappings(rootID).path)")
+            }
+            if let intermediary = libs.first(where: { $0.library.coordinate?.group == "net.fabricmc" && $0.library.coordinate?.artifact == "intermediary" }) {
+                jvm.append("-Dzmf.intermediary=\(intermediary.item.destination.path)")
+            }
+        }
         if natives.hasOpenAL {
             jvm.append("-Dorg.lwjgl.openal.libname=\(natives.directory.appendingPathComponent("libopenal.dylib").path)")
         }

@@ -41,6 +41,10 @@ final class GameSession: ObservableObject {
             }
 
             let settings = model.settingsStore.settings
+            if settings.voiceEnabled && settings.voiceAutoConnect && !model.voice.isConnected && !model.settingsStore.effectiveRelayURL.isEmpty {
+                state = .preparing("Connecting ZMF Voice")
+                await model.connectVoice() // failures are shown in the Voice tab; the game still starts
+            }
             GameOptionsFile.apply(settings, to: profile.gameDirectory)
             model.servers.sync(to: profile.gameDirectory)
 
@@ -68,7 +72,7 @@ final class GameSession: ObservableObject {
 
     private func present(_ mode: GameViewController.Mode, model: AppModel) {
         let settings = model.settingsStore.settings
-        let vc = GameViewController(mode: mode, settings: settings, preset: model.hud.preset(settings.activeHUDPreset))
+        let vc = GameViewController(mode: mode, settings: settings, preset: model.hud.preset(settings.activeHUDPreset), voice: model.voice)
         vc.onFinish = { [weak self] in
             if case .running = self?.state { self?.state = .idle }
         }

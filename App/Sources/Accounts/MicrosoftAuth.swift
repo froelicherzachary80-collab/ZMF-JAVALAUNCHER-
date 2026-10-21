@@ -25,6 +25,30 @@ struct MinecraftAccount: Codable, Identifiable, Equatable {
     }
 }
 
+extension AuthError {
+    /// Plain-language explanation of where sign-in stopped.
+    static func explain(_ error: Error) -> String {
+        if let e = error as? AuthError { return e.localizedDescription }
+        if let e = error as? HTTPError {
+            let host = e.url.host ?? ""
+            if host.contains("login.microsoftonline.com") {
+                if e.body.contains("unauthorized_client") || e.body.contains("invalid_client") || e.body.contains("AADSTS700016") {
+                    return "Step 1 (Microsoft) failed: the app (client) ID is wrong or not set up as a public client. In Entra › your app › Authentication, add redirect URI zmflauncher://auth and turn on \"Allow public client flows\"."
+                }
+                return "Step 1 (Microsoft) failed: \(e.body.prefix(200))"
+            }
+            if host.contains("xboxlive") { return "Step 2 (Xbox Live) failed (HTTP \(e.status))." }
+            if host.contains("minecraftservices") {
+                if e.status == 403 { return "Step 3 (Minecraft) failed: Microsoft has not approved this app ID for Minecraft yet. Request approval at aka.ms/mce-reviewappid, or use an already-approved ID." }
+                return "Step 3 (Minecraft) failed (HTTP \(e.status))."
+            }
+            return e.localizedDescription
+        }
+        if (error as NSError).domain == NSURLErrorDomain { return "No internet connection to Microsoft: \(error.localizedDescription)" }
+        return error.localizedDescription
+    }
+}
+
 enum AuthError: LocalizedError {
     case missingClientID
     case cancelled
@@ -254,6 +278,9 @@ final class AccountStore: ObservableObject {
     @Published var activeID: String? { didSet { UserDefaults.standard.set(activeID, forKey: "activeAccount") } }
     @Published var busy = false
     @Published var lastError: String?
+    /// Active device-code sign-in (shown as a big code in the UI).
+    @Published var deviceCode: DeviceCodeChallenge?
+    private var deviceCodeTask: Task<Void, Never>?
 
     private let authenticator = MicrosoftAuthenticator()
     private let keychainKey = "accounts.v1"
@@ -280,9 +307,42 @@ final class AccountStore: ObservableObject {
         } catch AuthError.cancelled {
             return
         } catch {
-            lastError = error.localizedDescription
+            lastError = AuthError.explain(error)
             zlog.error("Sign-in failed: \(error.localizedDescription)")
         }
+    }
+
+    /// Sign in with a code entered at microsoft.com/link (any device).
+    func startDeviceCodeSignIn(clientID: String) {
+        deviceCodeTask?.cancel()
+        lastError = nil
+        busy = true
+        deviceCodeTask = Task {
+            defer { busy = false; deviceCode = nil }
+            do {
+                let challenge = try await DeviceCodeLogin.start(clientID: clientID)
+                deviceCode = challenge
+                let token = try await DeviceCodeLogin.waitForToken(clientID: clientID, challenge: challenge)
+                let account = try await MinecraftServices.login(microsoft: token)
+                store(account)
+                activeID = account.id
+                zlog.info("Signed in (device code) as \(account.username)")
+            } catch is CancellationError {
+                return
+            } catch AuthError.cancelled {
+                return
+            } catch {
+                lastError = AuthError.explain(error)
+                zlog.error("Device-code sign-in failed: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    func cancelDeviceCode() {
+        deviceCodeTask?.cancel()
+        deviceCodeTask = nil
+        deviceCode = nil
+        busy = false
     }
 
     /// Returns a session with a valid Minecraft token, refreshing if needed.

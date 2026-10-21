@@ -94,6 +94,11 @@ final class InstallationManager: ObservableObject {
         if let client = version.downloads?["client"], let url = client.url {
             items.append(DownloadItem(url: url, destination: Paths.clientJar(rootID), sha1: client.sha1, size: client.size))
         }
+        if let mappings = version.downloads?["client_mappings"], let url = mappings.url {
+            // Official Mojang mappings (1.14.4+): lets ZMF Voice read the player's
+            // position from any version without a mod.
+            items.append(DownloadItem(url: url, destination: Paths.clientMappings(rootID), sha1: mappings.sha1, size: mappings.size))
+        }
         items += LibraryPlanner.classpathLibraries(for: version).map(\.item)
         if let logging = version.logging?.client {
             items.append(DownloadItem(url: logging.file.url,

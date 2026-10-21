@@ -16,6 +16,7 @@ settings:
     GCC_PREPROCESSOR_DEFINITIONS: ["$(inherited)", "GLES_SILENCE_DEPRECATION=1"]
     # Overridden from CI with the repository variable of the same name.
     ZMF_MSA_CLIENT_ID: ""
+    ZMF_VOICE_RELAY_URL: ""
 
 targets:
   ZMFGLFW:
@@ -55,6 +56,7 @@ targets:
       - sdk: GameController.framework
       - sdk: AuthenticationServices.framework
       - sdk: Network.framework
+      - sdk: AVFoundation.framework
     info:
       path: App/Info.plist
       properties:
@@ -82,6 +84,9 @@ targets:
           - CFBundleURLName: dev.zmf.javalauncher.auth
             CFBundleURLSchemes: [zmflauncher]
         ZMFMSAClientID: "$(ZMF_MSA_CLIENT_ID)"
+        ZMFVoiceRelayURL: "$(ZMF_VOICE_RELAY_URL)"
+        NSMicrophoneUsageDescription: ZMF Voice uses the microphone so players near you in Minecraft (and in your voice rooms) can hear you. Audio is only sent while you talk.
+        UIBackgroundModes: [audio]
         UTImportedTypeDeclarations:
           - UTTypeIdentifier: com.modrinth.mrpack
             UTTypeDescription: Modrinth Modpack

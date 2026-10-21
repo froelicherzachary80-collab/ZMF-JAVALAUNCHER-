@@ -112,7 +112,15 @@ private final class ResumeOnce: @unchecked Sendable {
 }
 
 final class ServerPinger {
-    static func ping(host: String, port: UInt16, timeout: TimeInterval = 6) async throws -> ServerStatus {
+    /// Pings a saved server, following its SRV record when no port is given.
+    static func ping(_ server: SavedServer) async throws -> ServerStatus {
+        if !server.hasExplicitPort, let target = await SRVResolver.resolve(server.host) {
+            return try await ping(host: target.host, port: target.port, handshakeHost: server.host)
+        }
+        return try await ping(host: server.host, port: server.port)
+    }
+
+    static func ping(host: String, port: UInt16, handshakeHost: String? = nil, timeout: TimeInterval = 6) async throws -> ServerStatus {
         let conn = NWConnection(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!, using: .tcp)
         defer { conn.cancel() }
         let queue = DispatchQueue(label: "dev.zmf.ping")
@@ -133,7 +141,7 @@ final class ServerPinger {
         }
 
         let start = Date()
-        try await send(conn, MinecraftProtocol.handshake(host: host, port: port) + MinecraftProtocol.packet(id: 0x00, Data()))
+        try await send(conn, MinecraftProtocol.handshake(host: handshakeHost ?? host, port: port) + MinecraftProtocol.packet(id: 0x00, Data()))
         let json: Data = try await withTimeout(timeout) {
             var buffer = Data()
             while true {
