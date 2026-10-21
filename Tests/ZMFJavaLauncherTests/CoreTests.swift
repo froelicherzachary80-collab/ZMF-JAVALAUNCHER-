@@ -176,11 +176,12 @@ final class CoreTests: XCTestCase {
 
     func testServersDatNBT() {
         let data = ServerStore.serversDat([SavedServer(name: "A", address: "b:1")])
-        let expected: [UInt8] = [10, 0, 0,                // root compound, empty name
-                                 9, 0, 7] + Array("servers".utf8) + [10, 0, 0, 0, 1, // list of 1 compound
-                                 8, 0, 4] + Array("name".utf8) + [0, 1, 0x41,
-                                 8, 0, 2] + Array("ip".utf8) + [0, 3] + Array("b:1".utf8) + [0, // end of server
-                                 0]                        // end of root
+        var expected: [UInt8] = [10, 0, 0]                    // root compound, empty name
+        expected += [9, 0, 7] + Array("servers".utf8)          // list "servers"
+        expected += [10, 0, 0, 0, 1]                           // of 1 compound
+        expected += [8, 0, 4] + Array("name".utf8) + [0, 1, 0x41]
+        expected += [8, 0, 2] + Array("ip".utf8) + [0, 3] + Array("b:1".utf8)
+        expected += [0, 0]                                     // end server, end root
         XCTAssertEqual(Array(data), expected)
         XCTAssertEqual(SavedServer(name: "x", address: "mc.example.org:25570").port, 25570)
         XCTAssertEqual(SavedServer(name: "x", address: "mc.example.org").host, "mc.example.org")
